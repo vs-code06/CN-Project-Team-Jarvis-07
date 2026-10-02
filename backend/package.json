@@ -1,0 +1,13 @@
+{
+  "name": "team1-backend",
+  "version": "1.0.0",
+  "description": "CN Project Team Jarvis 07 — Backend Server",
+  "main": "server.js",
+  "scripts": {
+    "start-a": "node server.js A 3001",
+    "start-b": "node server.js B 3002"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

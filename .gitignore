@@ -1,0 +1,24 @@
+# Private keys — NEVER commit
+*.key
+*.csr
+*.srl
+
+# Environment
+.env
+
+# macOS
+.DS_Store
+
+# Node
+node_modules/
+
+# Wireshark captures (too large for GitHub)
+*.pcapng
+*.pcap
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/

@@ -1,0 +1,5 @@
+# Private keys — NEVER commit
+*.key
+*.csr
+*.srl
+san.cnf

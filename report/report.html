@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CN Project Phase 1 — Team Jarvis 07 Report</title>
+<style>
+  @page { margin: 2cm; size: A4; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 11pt; line-height: 1.6; color: #222; }
+  h1 { font-size: 22pt; text-align: center; margin: 10px 0 5px; color: #1a1a2e; }
+  h2 { font-size: 16pt; color: #16213e; margin: 25px 0 10px; border-bottom: 2px solid #0f3460; padding-bottom: 4px; }
+  h3 { font-size: 13pt; color: #1a1a2e; margin: 18px 0 8px; }
+  h4 { font-size: 11pt; color: #333; margin: 12px 0 6px; }
+  p { margin: 6px 0; text-align: justify; }
+  .subtitle { text-align: center; font-size: 13pt; color: #555; margin-bottom: 5px; }
+  .team-info { text-align: center; margin: 15px 0 25px; }
+  .team-info p { text-align: center; font-size: 10pt; color: #444; margin: 2px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0 15px; font-size: 10pt; }
+  th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+  th { background: #0f3460; color: #fff; font-weight: 600; }
+  tr:nth-child(even) { background: #f5f5f5; }
+  code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-family: 'Courier New', monospace; font-size: 9.5pt; }
+  pre { background: #1a1a2e; color: #e0e0e0; padding: 12px; border-radius: 5px; font-size: 9pt; line-height: 1.4; overflow-x: auto; margin: 8px 0 12px; white-space: pre-wrap; word-wrap: break-word; }
+  .diagram { background: #fafafa; border: 1px solid #ddd; padding: 15px; border-radius: 5px; margin: 10px 0; }
+  .diagram pre { background: #fafafa; color: #222; font-size: 9pt; }
+  .page-break { page-break-before: always; }
+  .evidence-img { max-width: 100%; border: 1px solid #ccc; border-radius: 4px; margin: 8px 0; }
+  .caption { font-size: 9pt; color: #666; text-align: center; margin: 4px 0 12px; font-style: italic; }
+  ul, ol { margin: 6px 0 6px 25px; }
+  li { margin: 3px 0; }
+  .header-line { text-align: center; font-size: 10pt; color: #777; margin: 2px 0; }
+</style>
+</head>
+<body>
+
+<h1>Computer Networks Project — Phase 1</h1>
+<p class="subtitle">Private LAN Infrastructure: DNS, Load Balancing, HTTPS/TLS, Caching &amp; Packet Analysis</p>
+<p class="header-line">Team Jarvis 07</p>
+
+<div class="team-info">
+  <p><strong>Vipul Sharma</strong> — 2401010505 — Mac 1 (Private DNS)</p>
+  <p><strong>Utkarsh Jain</strong> — 2401020072 — Mac 2 (nginx Edge / TLS)</p>
+  <p><strong>Anant Jain</strong> — 2401010066 — Mac 3 (Backend A)</p>
+  <p><strong>Krishna Gehlot</strong> — 2401010236 — Mac 4 (Backend B / Client / Wireshark)</p>
+</div>
+
+<h2>1. Introduction</h2>
+<p>This project implements a complete multi-machine networking infrastructure on a private LAN using four Apple Macs. The system demonstrates core computer networking concepts including private DNS resolution, reverse proxying with round-robin load balancing, TLS termination with a locally-signed certificate authority, HTTP caching mechanisms, and network packet capture analysis using Wireshark.</p>
+
+<p>The architecture represents a simplified production web infrastructure where client requests traverse multiple network layers — DNS, TCP, TLS, and HTTP — before reaching the application backend, with all communication encrypted and load-balanced.</p>
+
+<h2>2. Architecture</h2>
+
+<div class="diagram">
+<pre>
+                          PRIVATE LAN
+                               |
+         -----------------------------------------------
+         |            |            |                  |
+       Mac 1        Mac 2        Mac 3              Mac 4
+       DNS          nginx        Backend A           Backend B
+       :53          :443         :3001               :3002
+       10.7.12.6    10.7.3.73    10.7.26.81          10.7.6.162
+       (Vipul)      (Utkarsh)    (Anant)             (Krishna)
+                       |
+                 Load Balancer
+                    /     \
+                   /       \
+              Backend A   Backend B
+</pre>
+</div>
+
+<table>
+  <tr><th>Machine</th><th>Member</th><th>Role</th><th>IP Address</th><th>Port</th></tr>
+  <tr><td>Mac 1</td><td>Vipul Sharma</td><td>Private DNS (dnsmasq)</td><td>10.7.12.6</td><td>53</td></tr>
+  <tr><td>Mac 2</td><td>Utkarsh Jain</td><td>nginx Reverse Proxy / TLS</td><td>10.7.3.73</td><td>443</td></tr>
+  <tr><td>Mac 3</td><td>Anant Jain</td><td>Backend A (Node.js + Express)</td><td>10.7.26.81</td><td>3001</td></tr>
+  <tr><td>Mac 4</td><td>Krishna Gehlot</td><td>Backend B + Client + Wireshark</td><td>10.7.6.162</td><td>3002</td></tr>
+</table>
+
+<h3>2.1 Domain Configuration</h3>
+<table>
+  <tr><th>Domain</th><th>Resolves To</th><th>Target</th></tr>
+  <tr><td><code>app.team1.test</code></td><td>10.7.3.73</td><td>nginx (Mac 2)</td></tr>
+  <tr><td><code>api.team1.test</code></td><td>10.7.3.73</td><td>nginx (Mac 2)</td></tr>
+</table>
+
+<h2>3. Request Flow</h2>
+<p>When a client makes a request to <code>https://app.team1.test/api/status</code>, the following sequence occurs:</p>
+
+<ol>
+  <li><strong>DNS Resolution</strong> — The client queries Mac 1 (10.7.12.6:53). dnsmasq returns <code>10.7.3.73</code> for <code>app.team1.test</code>.</li>
+  <li><strong>TCP 3-Way Handshake</strong> — The client initiates SYN → SYN-ACK → ACK with nginx on port 443.</li>
+  <li><strong>TLS Handshake</strong> — Client Hello, Server Hello, certificate exchange. The server presents <code>app.crt</code> signed by Team1 Local CA. The client verifies the chain against the trusted <code>ca.crt</code>.</li>
+  <li><strong>HTTP Request (encrypted)</strong> — <code>GET /api/status</code> is sent inside the TLS tunnel.</li>
+  <li><strong>nginx Proxy</strong> — nginx selects a backend via round-robin and forwards the request to Backend A (10.7.26.81:3001) or Backend B (10.7.6.162:3002).</li>
+  <li><strong>Backend Response</strong> — The backend returns JSON with an <code>X-Backend</code> header identifying itself.</li>
+  <li><strong>Response to Client</strong> — nginx forwards the response back through the TLS connection.</li>
+</ol>
+
+<h2 class="page-break">4. Task A — IP Addressing &amp; Connectivity</h2>
+<p>All four Macs are connected to the same private LAN. Connectivity was verified using ICMP ping between all machines.</p>
+<pre>ping -c 3 10.7.12.6    # Mac 1 — Vipul
+ping -c 3 10.7.3.73    # Mac 2 — Utkarsh
+ping -c 3 10.7.26.81   # Mac 3 — Anant
+ping -c 3 10.7.6.162   # Mac 4 — Krishna</pre>
+<p>All pings returned successful replies, confirming Layer 3 (IP) connectivity.</p>
+
+<h2>5. Task B — Private DNS</h2>
+<p>Mac 1 (Vipul — 10.7.12.6) runs dnsmasq as a private DNS server. The configuration maps both custom domains to the nginx proxy:</p>
+
+<pre>listen-address=127.0.0.1,10.7.12.6
+bind-interfaces
+no-resolv
+address=/app.team1.test/10.7.3.73
+address=/api.team1.test/10.7.3.73</pre>
+
+<p>Client Macs set their DNS to 10.7.12.6 using <code>networksetup -setdnsservers Wi-Fi 10.7.12.6</code>.</p>
+
+<h3>Evidence — DNS Resolution</h3>
+<img src="../evidence/task-b-dns/task-b-dns-dig.png" class="evidence-img" alt="DNS dig output">
+<p class="caption">Figure 1: <code>dig app.team1.test</code> — resolves to 10.7.3.73 via DNS server 10.7.12.6</p>
+
+<h2>6. Task C — Backend Servers</h2>
+<p>Both backends use the same Node.js + Express server (<code>server.js</code>). The backend name and port are passed as CLI arguments:</p>
+
+<pre>node server.js A 3001   # Mac 3 — Anant
+node server.js B 3002   # Mac 4 — Krishna</pre>
+
+<p>The server listens on <code>0.0.0.0</code> for LAN accessibility and exposes three endpoints: <code>/</code>, <code>/api/status</code>, and <code>/api/cached</code>. Each response includes an <code>X-Backend</code> header.</p>
+
+<h3>Evidence — Backend A Direct Access</h3>
+<img src="../evidence/task-c-backend/task-c-backend-a.png" class="evidence-img" alt="Backend A response">
+<p class="caption">Figure 2: Direct <code>curl -i http://10.7.26.81:3001/api/status</code> from Anant's Mac — X-Backend: A</p>
+
+<h2>7. Task D — Load Balancing</h2>
+<p>nginx on Mac 2 (Utkarsh — 10.7.3.73) acts as a reverse proxy with round-robin load balancing:</p>
+
+<pre>upstream backends {
+    server 10.7.26.81:3001 max_fails=1 fail_timeout=10s;
+    server 10.7.6.162:3002 max_fails=1 fail_timeout=10s;
+}</pre>
+
+<p>Requests alternate between Backend A and Backend B. The <code>max_fails=1 fail_timeout=10s</code> configuration enables automatic failover when a backend is unreachable.</p>
+
+<h3>Evidence — Load Balancing</h3>
+<img src="../evidence/task-d-load-balancing/task-d-load-balancing.jpeg" class="evidence-img" alt="Load balancing output">
+<p class="caption">Figure 3: Six consecutive requests showing alternating X-Backend: B, A, B, A, B, A</p>
+
+<img src="../evidence/task-c-backend/task-cd-backend-loadbalancing.png" class="evidence-img" alt="Backend + load balancing">
+<p class="caption">Figure 4: Direct backend access followed by load balancing test</p>
+
+<h2 class="page-break">8. Task E — HTTPS / TLS</h2>
+<p>A local Certificate Authority (Team1 Local CA) was created using OpenSSL. The server certificate covers both domains via Subject Alternative Names (SAN):</p>
+<pre>DNS.1 = app.team1.test
+DNS.2 = api.team1.test</pre>
+
+<p>The CA certificate (<code>ca.crt</code>) was installed on all client Macs using:</p>
+<pre>sudo security add-trusted-cert -d -r trustRoot \
+    -k /Library/Keychains/System.keychain ca.crt</pre>
+
+<p>HTTPS verification was performed <strong>without</strong> the <code>-k</code> flag to prove proper certificate trust:</p>
+<pre>/usr/bin/curl -v https://app.team1.test/api/status</pre>
+
+<h3>Evidence — HTTPS / TLS Handshake</h3>
+<img src="../evidence/task-e-https/task-e-https-tls.png" class="evidence-img" alt="HTTPS TLS verification">
+<p class="caption">Figure 5: Full verbose curl showing TLS handshake, <code>SSL certificate verify ok</code>, certificate details (CN=app.team1.test, Issuer=Team1 Local CA), and 200 OK response</p>
+
+<h3>Evidence — nginx Config + Certificate</h3>
+<img src="../evidence/task-e-https/task-de-nginx-config-tls-cert.png" class="evidence-img" alt="nginx config and cert">
+<p class="caption">Figure 6: nginx configuration on Utkarsh's Mac with syntax test OK, and <code>openssl x509</code> showing certificate details</p>
+
+<h2>9. Task F — Caching</h2>
+<p>The <code>/api/cached</code> endpoint demonstrates HTTP caching:</p>
+<ul>
+  <li><code>Cache-Control: max-age=60</code> — instructs clients to cache for 60 seconds</li>
+  <li><code>ETag</code> — auto-generated by Express as a fingerprint of the response body</li>
+</ul>
+
+<p>When a client sends <code>If-None-Match</code> with the previously received ETag, the server responds with <strong>304 Not Modified</strong> instead of retransmitting the data, saving bandwidth.</p>
+
+<h3>Evidence — Cache Response</h3>
+<img src="../evidence/task-f-caching/task-f-cache-200.png" class="evidence-img" alt="Cache response">
+<p class="caption">Figure 7: <code>curl -i https://app.team1.test/api/cached</code> — 200 OK with Cache-Control: max-age=60, ETag, X-Backend: B</p>
+
+<h2 class="page-break">10. Task G — Wireshark Packet Capture</h2>
+<p>Packet capture was performed on Mac 4 (Krishna — 10.7.6.162) using Wireshark on interface <code>en0</code>.</p>
+
+<p>To capture a TLS 1.2 session for clearer analysis:</p>
+<pre>/usr/bin/curl -v --tlsv1.2 --tls-max 1.2 https://app.team1.test/api/status</pre>
+
+<h3>Display Filters Used</h3>
+<table>
+  <tr><th>Filter</th><th>Purpose</th></tr>
+  <tr><td><code>dns</code></td><td>DNS query and response</td></tr>
+  <tr><td><code>tcp.flags.syn==1 &amp;&amp; tcp.port==443</code></td><td>TCP SYN packets for HTTPS connections</td></tr>
+  <tr><td><code>tls.handshake</code></td><td>TLS handshake messages</td></tr>
+  <tr><td><code>tls.record.content_type == 23</code></td><td>Encrypted application data</td></tr>
+  <tr><td><code>tls &amp;&amp; ip.addr == 10.7.3.73 &amp;&amp; tcp.port == 443</code></td><td>Complete TLS session to nginx</td></tr>
+</table>
+
+<h3>Evidence — Wireshark TLS Session</h3>
+<img src="../evidence/task-g-wireshark/task-g-wireshark-tls-session.jpeg" class="evidence-img" alt="Wireshark TLS session">
+<p class="caption">Figure 8: Wireshark filter <code>tls && ip.addr == 10.7.3.73 && tcp.port == 443</code> — Client Hello (SNI=app.team1.test), Server Hello, Application Data</p>
+
+<h3>Evidence — TCP + TLS Lifecycle</h3>
+<img src="../evidence/task-g-wireshark/task-g-wireshark-tcp-tls-lifecycle.jpeg" class="evidence-img" alt="Wireshark TCP TLS lifecycle">
+<p class="caption">Figure 9: Complete TCP + TLS connection lifecycle showing SYN, Client Hello, Server Hello, Application Data, RST/ACK, FIN/ACK</p>
+
+<h3>Evidence — TCP SYN</h3>
+<img src="../evidence/task-g-wireshark/task-g-wireshark-tcp-syn.jpeg" class="evidence-img" alt="Wireshark TCP SYN">
+<p class="caption">Figure 10: TCP SYN (SYN, ECE, CWR) establishing connection to port 443, followed by TLS handshake with Change Cipher Spec</p>
+
+<h3>Evidence — TLS Overview</h3>
+<img src="../evidence/task-g-wireshark/task-g-wireshark-tls-overview.jpeg" class="evidence-img" alt="Wireshark TLS overview">
+<p class="caption">Figure 11: Overview of multiple TLS sessions — Client Hello (SNI=app.team1.test), Server Hello, and encrypted Application Data</p>
+
+<h2 class="page-break">11. Failure Demonstrations</h2>
+<p>Five failure scenarios were demonstrated to prove understanding of the network stack:</p>
+
+<table>
+  <tr><th>#</th><th>Failure Scenario</th><th>Broken Layer</th><th>Expected Result</th></tr>
+  <tr><td>1</td><td>Wrong DNS server (8.8.8.8 instead of 10.7.12.6)</td><td>DNS</td><td>NXDOMAIN — <code>app.team1.test</code> not resolved</td></tr>
+  <tr><td>2</td><td>DNS points to wrong IP (10.7.26.81 instead of 10.7.3.73)</td><td>DNS → TCP</td><td>Connection refused — no nginx on that IP</td></tr>
+  <tr><td>3</td><td>One backend stopped</td><td>Application</td><td>nginx failover — all responses from healthy backend</td></tr>
+  <tr><td>4</td><td>Both backends stopped</td><td>Application</td><td>502 Bad Gateway — no upstream available</td></tr>
+  <tr><td>5</td><td>Wrong HTTPS port (8444 instead of 443)</td><td>TCP</td><td>Connection refused — nothing listening</td></tr>
+</table>
+
+<h3>Failure 1 — Wrong DNS Server</h3>
+<p>When the client DNS is set to <code>8.8.8.8</code> (Google), <code>app.team1.test</code> fails to resolve because it is a private domain. Direct IP access (ping) still works, proving the failure is isolated to the DNS layer.</p>
+
+<h3>Failure 2 — Wrong DNS Record</h3>
+<p>When <code>app.team1.test</code> resolves to <code>10.7.26.81</code> (Mac 3) instead of <code>10.7.3.73</code> (Mac 2), DNS resolution succeeds but TCP connection to port 443 fails because Mac 3 does not run nginx.</p>
+
+<h3>Failure 3 — One Backend Down</h3>
+<p>When Backend A is stopped, nginx detects the failure (via <code>max_fails=1</code>) and routes all traffic to Backend B. All responses show <code>X-Backend: B</code>. When Backend A restarts, normal round-robin resumes after <code>fail_timeout=10s</code>.</p>
+
+<h3>Failure 4 — Both Backends Down</h3>
+<p>When both backends are stopped, nginx returns <code>502 Bad Gateway</code>. DNS and TLS still work correctly — the failure is isolated between nginx and the upstream servers.</p>
+
+<h3>Failure 5 — Wrong HTTPS Port</h3>
+<p><code>curl https://app.team1.test:8444/</code> results in connection refused. Port 8444 is not open on Mac 2. ICMP ping to the same host still succeeds, proving the issue is at the transport layer.</p>
+
+<h2>12. Conclusion</h2>
+<p>This project successfully demonstrates a multi-layer network architecture on a private LAN. The system implements DNS resolution, TCP/TLS connections, reverse proxying with load balancing, HTTP caching, and provides Wireshark evidence of all network protocols in action. The five failure demonstrations prove isolation and understanding of each network layer.</p>
+
+<div style="margin-top: 40px; border-top: 1px solid #ccc; padding-top: 15px;">
+  <p style="text-align: center; font-size: 10pt; color: #888;">
+    CN Project Phase 1 — Team Jarvis 07<br>
+    Vipul Sharma (2401010505) · Utkarsh Jain (2401020072) · Anant Jain (2401010066) · Krishna Gehlot (2401010236)
+  </p>
+</div>
+
+</body>
+</html>
